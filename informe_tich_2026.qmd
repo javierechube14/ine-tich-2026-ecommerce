@@ -1,0 +1,534 @@
+---
+title: "Desigualdad Digital, Prácticas de Privacidad y Comercio Electrónico en España (2026)"
+subtitle: "Análisis sociológico aplicado con microdatos de la Encuesta TIC-H 2026 (INE)"
+author: "Javier Echube Bestué — Grado en Sociología (Universitat de València)"
+date: "2026-11-20"
+lang: es
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 3
+    toc-title: "Índice del informe"
+    code-fold: true
+    code-summary: "Mostrar código R"
+    embed-resources: true
+    fig-width: 9
+    fig-height: 5.4
+    fig-dpi: 300
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r setup}
+library(tidyverse)
+library(survey)
+library(knitr)
+library(scales)
+
+# Cargar microdatos limpios auditados
+datos <- readRDS("data-processed/tich2026_definitivo.rds")
+
+# Diseños muestrales ponderados (FACTOR_P)
+diseno_A <- svydesign(ids = ~1, weights = ~FACTOR_P_NUM, data = datos)
+diseno_B <- subset(diseno_A, USUARIO_INT_3M == 1)
+
+# Estilo gráfico sobrio y homogéneo
+theme_set(
+  theme_minimal(base_size = 11.5) +
+    theme(
+      plot.title = element_text(face = "bold", size = 13.5, color = "#1B365D"),
+      plot.subtitle = element_text(size = 10, color = "#4A5568", margin = margin(b = 12)),
+      plot.caption = element_text(size = 8.5, color = "#718096", hjust = 0),
+      panel.grid.minor = element_blank(),
+      panel.grid.major.y = element_line(color = "#EDF2F7"),
+      axis.title = element_text(face = "bold", size = 10, color = "#2D3748"),
+      legend.position = "top"
+    )
+)
+```
+
+## 1. Resumen Ejecutivo
+
+**Problema y objetivo:** La expansión del comercio electrónico en España suele interpretarse como un proceso homogéneo frenado principalmente por la desconfianza hacia la privacidad digital. Este informe contrasta dicha premisa analizando cómo la estratificación socioeconómica, las prácticas efectivas de gestión de datos personales y la adopción de tecnologías emergentes se asocian con la compra por Internet.
+
+**Datos y metodología:** Se analizan los microdatos públicos de la *Encuesta sobre Equipamiento y Uso de Tecnologías de Información y Comunicación en los Hogares (TIC-H 2026)* del Instituto Nacional de Estadística (INE). Sobre el universo oficial de **14.105 personas residentes de 16 a 74 años** (que representan un total ponderado de **37.634.488 habitantes**), se estiman modelos de regresión logística ponderada (`survey::svyglm`) diferenciando entre el conjunto de la población (Modelo A, $n = 14.105$), los usuarios recientes de Internet (Modelos B1 y B2, $n = 13.622$) y las personas sin uso reciente de la red (módulo contextual, $n = 483$).
+
+**Tres resultados principales:**
+
+1. **Asociación graduada con el nivel educativo y la edad:** Se estima que el **65,73 %** de la población de 16 a 74 años realizó compras online en los últimos tres meses. El nivel educativo presenta una asociación especialmente intensa y graduada: manteniendo constantes edad, sexo, ingresos del hogar, trabajo semanal y hábitat, la probabilidad estimada para un perfil tipo asciende del **53,9 %** con estudios primarios o primera etapa de ESO al **84,8 %** con estudios universitarios ($\text{OR} = 4,76, p < 0,001$).
+2. **Contraste entre actitud declarada y prácticas de privacidad:** Entre los usuarios recientes de Internet, declarar preocupación por la publicidad personalizada (`PREOPUB`) **no muestra asociación estadísticamente significativa** con la compra online ($p = 0,375$ y $p = 0,314$). Por el contrario, realizar prácticas activas de gestión de datos personales (`GESINT1`–`6`) se asocia **positivamente** con participar en el comercio electrónico ($\text{OR} = 1,20$ por cada acción adicional, $p < 0,001$), concentrándose la asociación en prácticas técnicas preventivas —limitar el acceso al perfil ($\text{OR} = 1,43$), denegar el uso publicitario de datos ($\text{OR} = 1,38$) y verificar la seguridad web ($\text{OR} = 1,34$).
+3. **Adopción tecnológica y dimensión territorial:** El uso de herramientas de **IA Generativa** se asocia con unas *odds* más del doble de elevadas de compra online ($\text{OR} = 2,37, p < 0,001$). Asimismo, dentro del universo de usuarios conectados, residir en municipios de menos de 20.000 habitantes se asocia con una mayor participación en el comercio electrónico frente a las grandes urbes ($\text{OR} = 1,38, p = 0,001$).
+
+**Utilidad aplicada:** Los hallazgos proporcionan evidencia empírica directamente aplicable a la segmentación de públicos, el diseño de estrategias de transparencia digital y la evaluación de programas de inclusión tecnológica en consultoría e investigación social.
+
+### Ficha Técnica de la Investigación
+
+| Elemento | Descripción |
+|:---|:---|
+| **Fuente de datos** | INE, *Encuesta sobre Equipamiento y Uso de TIC en los Hogares (TIC-H 2026)* — Fichero público cuestionario |
+| **Técnica de investigación** | Análisis cuantitativo secundario de microdatos de encuesta |
+| **Universo principal** | Población residente en España de 16 a 74 años (estándar Eurostat/INE) |
+| **Registros analizados** | $14.105$ individuos en Universo A ($13.622$ en Universo B; $483$ en módulo no usuarios) |
+| **Factor de ponderación** | Factor de elevación individual (`FACTOR_P`; $N_{\text{ef}}$ de Kish $= 6.846$) |
+| **Diseño muestral** | Estudio transversal; estimación ponderada bajo `ids = ~1` (errores estándar provisionales) |
+| **Modelización estadística** | Regresión logística ponderada (`svyglm`, familia `quasibinomial`) y efectos marginales |
+| **Software y reproducibilidad** | R (tidyverse, survey, knitr) y Quarto (`embed-resources: true`) |
+| **Repositorio reproducible** | `github.com/javierechube14/ine-tich-2026-ecommerce` |
+
+---
+
+## 2. Planteamiento Sociológico
+
+### 2.1. Problema de investigación, pregunta e hipótesis
+
+La digitalización de las prácticas de consumo ha convertido el comercio electrónico en una infraestructura cotidiana de abastecimiento y participación económica. Desde una perspectiva sociológica, sin embargo, la participación en mercados digitales no depende exclusivamente de la disponibilidad técnica de conexión, sino de la distribución desigual de recursos materiales, formativos y disposicionales entre distintos grupos sociales.
+
+Con el propósito de superar tanto el determinismo tecnológico como las explicaciones basadas únicamente en actitudes declaradas, esta investigación formula la siguiente pregunta:
+
+> *¿Qué relación existe entre la posición socioeconómica, las prácticas de gestión de la privacidad y la adopción de tecnologías emergentes con la participación en el comercio electrónico en España?*
+
+De esta pregunta se derivan tres hipótesis operativas contrastables en datos transversales:
+
+* **H1 (Estratificación estructural):** La participación en el comercio electrónico reproduce desigualdades sociales preexistentes, asociándose positivamente con el nivel educativo, los ingresos del hogar y la actividad laboral reciente, y negativamente con la edad.
+* **H2 (Tensión entre actitud y práctica de privacidad):** Mientras que la preocupación abstracta por la publicidad personalizada no presenta asociación negativa con la compra online, las prácticas activas de gestión de datos personales se asocian positivamente con la participación transaccional.
+* **H3 (Convergencia de prácticas digitales):** Entre los usuarios conectados, la adopción de herramientas emergentes como la inteligencia artificial generativa mantiene una asociación positiva e independiente con la compra por Internet.
+
+### 2.2. Contribución de la investigación
+
+Esta investigación no pretende únicamente reproducir indicadores descriptivos publicados por el INE, sino examinar cómo se distribuye socialmente la adopción del comercio electrónico y cómo se relaciona con prácticas digitales que habitualmente se analizan por separado. Su principal aportación consiste en integrar, dentro de un mismo marco analítico, la estratificación socioeconómica, las conductas efectivas de gestión de información personal y la adopción de inteligencia artificial generativa. Esta aproximación permite explorar si la participación en el comercio electrónico está vinculada exclusivamente a los recursos económicos o si también se asocia con formas diferenciadas de apropiación y utilización de los entornos digitales.
+
+### 2.3. Marco conceptual
+
+El planteamiento analítico se apoya en tres ejes conceptuales de la sociología digital y la estratificación social:
+
+1. **La brecha digital en tres niveles (van Dijk, 2005; Hargittai, 2002):** Superando la dicotomía inicial entre conectados y desconectados (*primer nivel*), la investigación sociológica distingue las desigualdades en habilidades y formas de uso (*segundo nivel*) y la capacidad desigual de convertir la actividad online en beneficios tangibles en la vida cotidiana (*tercer nivel*), ámbito en el que se inscribe el aprovechamiento transaccional del comercio electrónico.
+2. **Distribución desigual de capitales (Bourdieu, 1979):** Las prácticas de consumo están condicionadas por el volumen y la composición de los recursos disponibles en el hogar. El capital económico facilita la capacidad adquisitiva, mientras que las disposiciones vinculadas al capital cultural favorecen el desenvolvimiento en entornos informacionales complejos. No obstante, en la operacionalización empírica debe evitarse equiparar mecánicamente la titulación educativa formal con el concepto completo de capital cultural, tratándola rigurosamente como un indicador parcial de cualificación.
+3. **La privacidad como práctica contextual frente a actitud declarada (Nissenbaum, 2010; Solove, 2008):** Las preocupaciones expresadas sobre riesgos informacionales no se traducen linealmente en abstención conductual. En entornos mediados por plataformas, proteger la información personal constituye un repertorio de prácticas situadas que exige conocimiento operativo y que puede convivir con una intensa actividad comercial digital.
+
+---
+
+## 3. Datos y Diseño de Investigación
+
+### 3.1. Fuente, universo y delimitación de subpoblaciones
+
+Se utilizan los microdatos públicos del fichero cuestionario de la **Encuesta TIC-H 2026 (INE)**, compuesto por **16.735 registros** y **219 variables**. Siguiendo el estándar metodológico europeo (Eurostat) empleado por el INE, el universo principal se acota a las **14.105 personas residentes de 16 a 74 años**, que ponderadas mediante el factor de elevación individual (`FACTOR_P`) representan un universo estimado de **37.634.488 residentes**.
+
+La auditoría documental del cuestionario y de su Diseño de Registro (`dr_TICHcuestionario_2026.xlsx`) permitió delimitar tres subconjuntos analíticos respetando los filtros oficiales:
+
+* **Universo A — Población general de 16 a 74 años ($n = 14.105$):** Conjunto completo utilizado para estimar la prevalencia global de compra online y los determinantes sociodemográficos (Modelo A).
+* **Universo B — Usuarios recientes de Internet ($n = 13.622$):** Subpoblación que utilizó Internet en los últimos tres meses (`ULT_INT = 1`), única a la que el cuestionario administra los bloques de preocupación publicitaria, gestión de privacidad e inteligencia artificial generativa (Modelos B1 y B2).
+* **Módulo contextual — Personas sin uso reciente de Internet ($n = 483$):** Subpoblación que no utilizó Internet en los últimos tres meses (`ULT_INT` en categorías 2, 3 o 4), analizada exclusivamente para contextualizar los motivos de no utilización de la red.
+
+### 3.2. Ponderación y alcance inferencial
+
+Todas las estimaciones incorporan el factor de elevación individual (`FACTOR_P`, sin valores ausentes en los 14.105 registros; coeficiente de variación $= 1,03$). Debido a la variabilidad de los pesos, el tamaño muestral efectivo de Kish asociado exclusivamente a la ponderación se sitúa en $N_{\text{ef}} = 6.846$.
+
+Como limitación del fichero público utilizado, los microdatos disponibles no incluyen identificadores de Unidades Primarias de Muestreo (UPM) ni de estratos del diseño muestral por secreto estadístico (`HABITAT_ESTRATO` refleja únicamente el tamaño demográfico del municipio). Por consiguiente, las estimaciones se ejecutan mediante `survey::svydesign(ids = ~1, weights = ~FACTOR_P)`. El factor de elevación permite obtener estimaciones ponderadas para el universo de referencia, mientras que los errores estándar e intervalos de confianza al 95 % incorporan el efecto de desigualdad de pesos pero deben interpretarse como **estimaciones provisionales** al no incorporar la estructura completa de conglomeración y estratificación.
+
+---
+
+## 4. Operacionalización de Variables
+
+Cada variable analítica se construyó verificando previamente las tablas oficiales de códigos del Diseño de Registro del INE (detalladas en el Anexo A1):
+
+* **Participación en comercio electrónico (`COMPRA_3M`):** Variable binaria que toma valor `1` si la persona compró por Internet en los últimos tres meses (`ULT_COM = 1`) y `0` en caso contrario. El cruce con `ULT_INT` (*¿Cuándo fue la última vez que usó Internet?*, tabla `T_INTER`) confirmó documentalmente que los **443 valores ausentes** en `ULT_COM` corresponden íntegramente a personas que usaron Internet por última vez hace más de un año (`ULT_INT = 3`, $n = 102$) o nunca (`ULT_INT = 4`, $n = 341$). Dado que el flujo del cuestionario excluye de la compra reciente a quienes no han usado Internet en más de un año, su codificación como `0` garantiza **cero valores ausentes** ($n = 14.105$).
+* **Posición socioeconómica y ciclo vital:**
+  * *Nivel educativo (`ESTUDIOS_F`):* Agrupación jerárquica de `NIVELEST` (tabla `T_ESTUD`) en cuatro niveles formativos más una categoría separada para los casos no codificables (`NIVELEST = 9`, $n = 134$).
+  * *Ingresos del hogar (`ING_HOG_F`):* Cinco quintiles oficiales de ingresos mensuales netos del hogar definidos por el INE (`T_INGRE`), conservando explícitamente la categoría `"NS/NR"` ($n = 1.081$) para evitar pérdidas muestrales por no respuesta económica.
+  * *Actividad laboral reciente (`TRABAJO_SEMANA_F`):* Indicador dicotómico basado en `TRAB` (*trabajó la última semana*: Sí trabajó vs. No trabajó), evitando equiparar la segunda categoría con desempleo al incluir estudiantes, jubilados e inactivos.
+  * *Edad (`GRUPO_EDAD`), sexo (`SEXO_F`) y tamaño municipal (`HABITAT_F`, tabla `T_1HBT`).*
+* **Actitudes y prácticas de privacidad (`PREOPUB_F`, `N_ACCIONES_GESTION_DATOS` y `GESINT1`–`6`):**
+  * *Dimensión actitudinal:* Grado de preocupación por la publicidad personalizada (`PREOPUB`, tabla `TPREOPB`: Nada, Algo o Muy preocupado).
+  * *Dimensión conductual:* Recuento de seis prácticas declaradas de gestión de información personal (`GESINT1` a `GESINT6`, rango 0–6). La consistencia interna de los seis ítems alcanza un coeficiente **KR-20 (Alfa de Cronbach) de $0,782$** ($n = 13.622$), información complementaria que respalda su uso como indicador agregado exploratorio en el Modelo B1 sin presentarlo como prueba de unidimensionalidad estricta. Por ello, el Modelo B2 analiza las seis acciones por separado.
+* **Adopción tecnológica (`USO_IAG_F`) e intensidad de conexión (`FREC_INT_USU`):** Uso de herramientas de inteligencia artificial generativa en los últimos tres meses (`IAG`) y frecuencia de conexión a Internet (`T_INTFR`).
+
+---
+
+## 5. Estrategia Analítica
+
+La estrategia analítica evita mezclar subpoblaciones sometidas a distintos filtros de cuestionario y previene problemas de separación estadística:
+
+1. **Estimaciones descriptivas bivariadas ponderadas:** Cálculo de proporciones ponderadas de compra online por nivel educativo y quintiles de ingresos del hogar.
+2. **Modelo A — Desigualdad estructural ($n = 14.105$):** Regresión logística ponderada (`quasibinomial`) de `COMPRA_3M` sobre edad, sexo, estudios, ingresos del hogar, trabajo semanal y hábitat. Se excluye la frecuencia de uso de Internet para evitar la separación perfecta generada por los 483 no usuarios recientes (cuya tasa de compra es 0 % por diseño) y aislar los determinantes sociodemográficos.
+3. **Modelos B1 y B2 — Privacidad y prácticas digitales ($n = 13.622$):** Regresiones logísticas ponderadas restringidas a usuarios recientes de Internet, incorporando frecuencia de conexión, preocupación publicitaria (`PREOPUB_F`), uso de IA generativa (`USO_IAG_F`) y las prácticas de gestión de datos tanto en recuento agregado (B1) como desglosadas individualmente (B2).
+4. **Probabilidades predichas (efectos marginales sobre perfiles tipo):** Para expresar las asociaciones en puntos porcentuales interpretables, se estiman probabilidades predichas mediante `predict(..., type = "response")` fijando perfiles sociodemográficos explícitos.
+5. **Módulo complementario de no utilización de Internet ($n = 483$):** Estimación ponderada de los ocho motivos declarados para no utilizar Internet (`NOUSOINT_1`–`7` y `NOUSOINT_OTRAPERS`), verificando previamente su denominador completo ($483/483$) y la distribución etaria del colectivo.
+
+---
+
+## 6. Resultados
+
+### 6.1. Desigualdad estructural en el comercio electrónico (Universo A)
+
+En el conjunto de la población de 16 a 74 años, la estimación ponderada de participación en el comercio electrónico durante los últimos tres meses se sitúa en el **65,73 %** (frente al **67,20 %** si se excluyen del denominador los 443 casos sin respuesta explícita en `ULT_COM`).
+
+```{r fig-desigualdad-estructural}
+prev_edu <- svyby(~COMPRA_3M, ~ESTUDIOS_F, diseno_A, svymean, na.rm = TRUE) %>%
+  filter(ESTUDIOS_F != "5. No se puede codificar") %>%
+  mutate(
+    Dimension = "Nivel de estudios terminados",
+    Categoria = str_remove(as.character(ESTUDIOS_F), "^[0-9]\\. "),
+    pct = COMPRA_3M * 100,
+    ic_inf = (COMPRA_3M - 1.96 * se) * 100,
+    ic_sup = (COMPRA_3M + 1.96 * se) * 100
+  )
+
+prev_ing <- svyby(~COMPRA_3M, ~ING_HOG_F, diseno_A, svymean, na.rm = TRUE) %>%
+  mutate(
+    Dimension = "Ingresos mensuales netos del hogar (quintiles INE)",
+    Categoria = as.character(ING_HOG_F),
+    pct = COMPRA_3M * 100,
+    ic_inf = (COMPRA_3M - 1.96 * se) * 100,
+    ic_sup = (COMPRA_3M + 1.96 * se) * 100
+  )
+
+df_estructural <- bind_rows(prev_edu, prev_ing) %>%
+  mutate(Categoria = fct_inorder(Categoria))
+
+ggplot(df_estructural, aes(x = pct, y = fct_rev(Categoria), fill = Dimension)) +
+  geom_col(width = 0.62, show.legend = FALSE) +
+  geom_errorbarh(aes(xmin = ic_inf, xmax = ic_sup), height = 0.2, color = "#2D3748", linewidth = 0.6) +
+  geom_text(aes(label = sprintf("%.1f%%", pct)), hjust = -0.25, size = 3.5, fontface = "bold", color = "#1A202C") +
+  facet_wrap(~Dimension, scales = "free_y", ncol = 1) +
+  scale_fill_manual(values = c("#1B365D", "#3182CE")) +
+  scale_x_continuous(limits = c(0, 96), labels = function(x) paste0(x, "%")) +
+  labs(
+    title = "Participación en el comercio electrónico según nivel educativo y quintiles de ingresos",
+    subtitle = "Porcentaje ponderado de población (16-74 años) que compró online en los últimos 3 meses (n = 14.105)",
+    x = "Porcentaje ponderado (con IC 95% aproximado bajo ids = ~1)",
+    y = NULL,
+    caption = "Fuente: Elaboración propia a partir de microdatos INE TIC-H 2026 (FACTOR_P). Se omite 'No se puede codificar' (n = 134)."
+  )
+```
+
+Los descriptivos ponderados muestran una diferencia de **39,8 puntos porcentuales** entre la población con estudios primarios o primera etapa de ESO (**42,8 %**) y la población con estudios universitarios (**82,6 %**), mientras que la distancia entre el primer quintil de ingresos del hogar (**60,2 %**) y el quinto quintil (**76,3 %**) alcanza los **16,1 puntos**.
+
+```{r fig-efectos-marginales-A}
+mod_A <- svyglm(
+  COMPRA_3M ~ GRUPO_EDAD + SEXO_F + ESTUDIOS_F + ING_HOG_F + TRABAJO_SEMANA_F + HABITAT_F,
+  design = diseno_A,
+  family = quasibinomial()
+)
+
+# Cálculo documentado de probabilidades predichas (efectos marginales sobre perfil de referencia):
+# Perfil fijado: Mujer, Tercer quintil de ingresos, Sí trabajó la última semana, Municipio 100.000-499.999 hab.
+grid_A <- expand_grid(
+  ESTUDIOS_F = factor(c(
+    "1. Primarios o 1ª etapa ESO",
+    "2. Bachillerato / FP Medio / Postsec.",
+    "3. FP Grado Superior",
+    "4. Universitarios (Grado/Máster/Doc)"
+  ), levels = levels(datos$ESTUDIOS_F)),
+  GRUPO_EDAD = factor(c("25-34", "45-54", "65-74"), levels = levels(datos$GRUPO_EDAD)),
+  SEXO_F = factor("Mujer", levels = levels(datos$SEXO_F)),
+  ING_HOG_F = factor("Tercer quintil", levels = levels(datos$ING_HOG_F)),
+  TRABAJO_SEMANA_F = factor("Sí trabajó", levels = levels(datos$TRABAJO_SEMANA_F)),
+  HABITAT_F = factor("2. 100.000 - 499.999 hab.", levels = levels(datos$HABITAT_F))
+)
+
+grid_A$prob_pct <- as.numeric(predict(mod_A, newdata = grid_A, type = "response")) * 100
+grid_A$Estudios_corto <- recode(grid_A$ESTUDIOS_F,
+  "1. Primarios o 1ª etapa ESO" = "Primarios / ESO 1ª",
+  "2. Bachillerato / FP Medio / Postsec." = "Bachillerato / FP Medio",
+  "3. FP Grado Superior" = "FP Grado Superior",
+  "4. Universitarios (Grado/Máster/Doc)" = "Universitarios"
+)
+
+ggplot(grid_A, aes(x = Estudios_corto, y = prob_pct, color = GRUPO_EDAD, group = GRUPO_EDAD)) +
+  geom_line(linewidth = 1.1) +
+  geom_point(size = 3.2) +
+  geom_text(aes(label = sprintf("%.1f%%", prob_pct)), vjust = -0.9, size = 3.3, fontface = "bold", show.legend = FALSE) +
+  scale_color_manual(values = c("25-34" = "#1B365D", "45-54" = "#3182CE", "65-74" = "#C53030")) +
+  scale_y_continuous(limits = c(15, 98), labels = function(x) paste0(x, "%")) +
+  labs(
+    title = "Probabilidad estimada de compra online según nivel educativo y grupo de edad",
+    subtitle = "Predicciones del Modelo A (perfil fijado: mujer, Q3 ingresos, trabajó última semana, 100k-499k hab.; n = 14.105)",
+    x = "Nivel de estudios terminados",
+    y = "Probabilidad estimada de compra (3 meses)",
+    color = "Grupo de edad:",
+    caption = "Fuente: Elaboración propia a partir de Modelo A (INE TIC-H 2026). Coeficientes completos en Tabla A1 del Anexo Técnico."
+  )
+```
+
+En la regresión multivariante (Tabla A1 del Anexo Técnico), el nivel educativo presenta una asociación especialmente intensa y graduada: manteniendo constantes las demás variables, las *odds* estimadas de compra online se multiplican por **2,46** en Bachillerato/FP Medio, por **3,32** en FP Superior y por **4,76** en estudios universitarios respecto a estudios primarios o primera etapa de ESO ($p < 0,001$). Para un perfil de referencia de 45–54 años (mujer, tercer quintil de renta, trabajó la última semana, municipio de 100.000–499.999 habitantes), la probabilidad estimada pasa del **53,9 %** con estudios básicos al **84,8 %** con estudios universitarios.
+
+Por su parte, los ingresos del hogar muestran diferencias estadísticamente significativas a partir del tercer quintil ($\text{OR} = 1,28, p = 0,010$), alcanzando un $\text{OR} = 1,66$ ($p < 0,001$) en el quinto quintil. No se observa asociación significativa según sexo ($\text{OR} = 1,05, p = 0,382$), mientras que la edad muestra una caída pronunciada a partir de los 45 años ($\text{OR} = 0,61$ en 45–54; $\text{OR} = 0,33$ en 55–64; $\text{OR} = 0,19$ en 65–74 años) y no haber trabajado la semana anterior se asocia con menores *odds* de compra ($\text{OR} = 0,71, p < 0,001$). En cuanto al tamaño del municipio, residir en localidades de menos de 20.000 habitantes presenta un $\text{OR} = 1,20$ respecto a las ciudades de $\ge 500.000$ habitantes, situándose en el límite de la significación convencional ($p = 0,054$).
+
+---
+
+### 6.2. Privacidad, prácticas digitales e IA generativa en usuarios conectados (Universo B)
+
+Al restringir el análisis a las **13.622 personas que utilizaron Internet en los últimos tres meses**, los Modelos B1 y B2 permiten examinar cómo se relacionan las actitudes y prácticas de privacidad con la compra online.
+
+```{r fig-forest-B2}
+mod_B1 <- svyglm(
+  COMPRA_3M ~ GRUPO_EDAD + SEXO_F + ESTUDIOS_F + ING_HOG_F + TRABAJO_SEMANA_F + HABITAT_F +
+    FREC_INT_USU + PREOPUB_F + N_ACCIONES_GESTION_DATOS + USO_IAG_F,
+  design = diseno_B,
+  family = quasibinomial()
+)
+
+mod_B2 <- svyglm(
+  COMPRA_3M ~ GRUPO_EDAD + SEXO_F + ESTUDIOS_F + ING_HOG_F + TRABAJO_SEMANA_F + HABITAT_F +
+    FREC_INT_USU + PREOPUB_F + GESINT1_NUM + GESINT2_NUM + GESINT3_NUM +
+    GESINT4_NUM + GESINT5_NUM + GESINT6_NUM + USO_IAG_F,
+  design = diseno_B,
+  family = quasibinomial()
+)
+
+coefs_B2 <- summary(mod_B2)$coefficients
+ic_B2 <- confint(mod_B2)
+
+vars_digitales <- c(
+  "PREOPUB_FAlgo preocupado", "PREOPUB_FMuy preocupado",
+  "GESINT1_NUM", "GESINT2_NUM", "GESINT3_NUM",
+  "GESINT4_NUM", "GESINT5_NUM", "GESINT6_NUM",
+  "USO_IAG_FUsa IA Gen"
+)
+
+df_forest <- tibble(
+  Variable = vars_digitales,
+  OR = exp(coefs_B2[vars_digitales, 1]),
+  IC_inf = exp(ic_B2[vars_digitales, 1]),
+  IC_sup = exp(ic_B2[vars_digitales, 2]),
+  p_val = coefs_B2[vars_digitales, 4]
+) %>%
+  mutate(
+    Dimension = case_when(
+      str_starts(Variable, "PREOPUB") ~ "1. Actitud declarada",
+      str_starts(Variable, "GESINT") ~ "2. Prácticas de gestión de datos",
+      TRUE ~ "3. Adopción tecnológica"
+    ),
+    Etiqueta = recode(Variable,
+      "PREOPUB_FAlgo preocupado" = "Algo preocupado publicidad (ref: Nada)",
+      "PREOPUB_FMuy preocupado" = "Muy preocupado publicidad (ref: Nada)",
+      "GESINT1_NUM" = "Leer política de privacidad",
+      "GESINT2_NUM" = "Restringir acceso a ubicación",
+      "GESINT3_NUM" = "Limitar acceso a perfil/contenidos",
+      "GESINT4_NUM" = "Denegar uso de datos para publicidad",
+      "GESINT5_NUM" = "Comprobar seguridad del sitio web",
+      "GESINT6_NUM" = "Solicitar eliminación/actualización datos",
+      "USO_IAG_FUsa IA Gen" = "Usa IA Generativa (últimos 3 meses)"
+    ),
+    Significativo = if_else(p_val < 0.05, "Asociación significativa (p < 0,05)", "No significativo (p >= 0,05)")
+  )
+
+ggplot(df_forest, aes(x = OR, y = fct_rev(fct_inorder(Etiqueta)), color = Significativo)) +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "#718096", linewidth = 0.8) +
+  geom_errorbarh(aes(xmin = IC_inf, xmax = IC_sup), height = 0.22, linewidth = 0.8) +
+  geom_point(size = 3.2) +
+  geom_text(aes(label = sprintf("OR = %.2f", OR)), vjust = -0.8, size = 3.2, fontface = "bold", show.legend = FALSE) +
+  facet_grid(Dimension ~ ., scales = "free_y", space = "free_y") +
+  scale_color_manual(values = c("No significativo (p >= 0,05)" = "#A0AEC0", "Asociación significativa (p < 0,05)" = "#1B365D")) +
+  scale_x_continuous(breaks = seq(0.8, 2.8, by = 0.2), limits = c(0.7, 2.85)) +
+  labs(
+    title = "Prácticas de gestión de datos, preocupación publicitaria y compra online (Modelo B2)",
+    subtitle = "Odds Ratios ajustados (IC 95% provisional) en usuarios recientes de Internet (n = 13.622)",
+    x = "Odds Ratio ajustado (línea discontinua = ausencia de asociación)",
+    y = NULL,
+    color = NULL,
+    caption = "Fuente: INE TIC-H 2026. Ajustado por edad, sexo, estudios, ingresos, trabajo semanal, hábitat y frecuencia de uso."
+  ) +
+  theme(strip.text.y = element_text(angle = 0, face = "bold", hjust = 0, size = 9.5))
+```
+
+Los modelos arrojan tres resultados diferenciados:
+
+* **Ausencia de asociación significativa en la preocupación publicitaria (`PREOPUB_F`):** Ni estar *"algo preocupado"* ($\text{OR} = 1,08, p = 0,375$ en B2) ni *"muy preocupado"* ($\text{OR} = 1,09, p = 0,314$) por la publicidad personalizada presenta una asociación estadísticamente detectable con la compra online una vez controladas las demás variables.
+* **Asociación positiva del recuento de acciones de gestión de datos (`Modelo B1`):** Cada acción declarada adicional de gestión de información personal se asocia con un incremento aproximado del **20,2 %** en las *odds* de compra online ($\text{OR} = 1,20, \text{IC}_{95\%}: [1,16; 1,25], p < 0,001$).
+* **Diferenciación entre las seis prácticas (`Modelo B2`):** Mientras que leer políticas de privacidad ($\text{OR} = 0,97, p = 0,713$), restringir la ubicación ($\text{OR} = 1,13, p = 0,158$) o solicitar la supresión de datos ($\text{OR} = 0,90, p = 0,195$) no muestran asociación estadísticamente significativa, tres prácticas de control activo presentan asociaciones positivas claras: **limitar el acceso al perfil** ($\text{OR} = 1,43, p < 0,001$), **denegar el uso de datos personales con fines publicitarios** ($\text{OR} = 1,38, p < 0,001$) y **comprobar la seguridad del sitio web** ($\text{OR} = 1,34, p < 0,001$). Asimismo, utilizar herramientas de **IA Generativa** se asocia con unas *odds* 2,37 veces mayores de compra online ($p < 0,001$), y dentro de este universo de usuarios conectados, residir en municipios de menos de 20.000 habitantes sí muestra una asociación positiva significativa ($\text{OR} = 1,38, p = 0,001$).
+
+```{r fig-simulacion-privacidad}
+# Simulación documentada sobre Modelo B1:
+# Perfil fijado: Mujer, 35-44 años, Tercer quintil ingresos, Sí trabajó, 100k-499k hab.,
+# Conexión varias veces al día, Algo preocupada por publicidad, No usa IA Generativa.
+grid_priv <- expand_grid(
+  N_ACCIONES_GESTION_DATOS = 0:6,
+  ESTUDIOS_F = factor(c(
+    "1. Primarios o 1ª etapa ESO",
+    "4. Universitarios (Grado/Máster/Doc)"
+  ), levels = levels(datos$ESTUDIOS_F)),
+  GRUPO_EDAD = factor("35-44", levels = levels(datos$GRUPO_EDAD)),
+  SEXO_F = factor("Mujer", levels = levels(datos$SEXO_F)),
+  ING_HOG_F = factor("Tercer quintil", levels = levels(datos$ING_HOG_F)),
+  TRABAJO_SEMANA_F = factor("Sí trabajó", levels = levels(datos$TRABAJO_SEMANA_F)),
+  HABITAT_F = factor("2. 100.000 - 499.999 hab.", levels = levels(datos$HABITAT_F)),
+  FREC_INT_USU = factor("1. Varias veces al día", levels = levels(datos$FREC_INT_USU)),
+  PREOPUB_F = factor("Algo preocupado", levels = levels(datos$PREOPUB_F)),
+  USO_IAG_F = factor("No usa IA Gen", levels = levels(datos$USO_IAG_F))
+)
+
+grid_priv$prob_compra <- as.numeric(predict(mod_B1, newdata = grid_priv, type = "response")) * 100
+grid_priv$Nivel_Educativo <- recode(grid_priv$ESTUDIOS_F,
+  "1. Primarios o 1ª etapa ESO" = "Estudios primarios / 1ª etapa ESO",
+  "4. Universitarios (Grado/Máster/Doc)" = "Estudios universitarios"
+)
+
+ggplot(grid_priv, aes(x = N_ACCIONES_GESTION_DATOS, y = prob_compra, color = Nivel_Educativo)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 3) +
+  geom_text(aes(label = sprintf("%.1f%%", prob_compra)), vjust = -0.95, size = 3.2, fontface = "bold", show.legend = FALSE) +
+  scale_color_manual(values = c("#C53030", "#1B365D")) +
+  scale_x_continuous(breaks = 0:6) +
+  scale_y_continuous(limits = c(45, 93), labels = function(x) paste0(x, "%")) +
+  labs(
+    title = "Probabilidad estimada de compra según recuento de gestión de datos y educación",
+    subtitle = "Predicciones Modelo B1 (perfil fijado: mujer, 35-44 años, Q3, conexión diaria, algo preocupada, sin IA Gen; n = 13.622)",
+    x = "Número de acciones declaradas de gestión de datos personales (0 a 6)",
+    y = "Probabilidad estimada de compra (3 meses)",
+    color = "Nivel educativo:",
+    caption = "Fuente: Elaboración propia a partir de Modelo B1 (INE TIC-H 2026)."
+  )
+```
+
+---
+
+### 6.3. Contextualización: Motivos de no utilización de Internet ($n = 483$)
+
+Para contextualizar adecuadamente a quienes quedan fuera del Universo B, se analizaron los ocho motivos declarados para no utilizar Internet entre las **483 personas** de 16 a 74 años sin conexión en los últimos tres meses (pregunta de respuesta múltiple con denominador completo $483/483$ en todos los ítems). Desde el punto de vista sociodemográfico, este colectivo se concentra fuertemente en los tramos superiores de edad: el **60,0 %** tiene entre 65 y 74 años y el **19,1 %** entre 55 y 64 años (frente a solo un 2,3 % menor de 35 años).
+
+```{r fig-exclusion-primaria}
+datos_nousu <- datos %>%
+  filter(USUARIO_INT_3M == 0) %>%
+  mutate(across(
+    starts_with("NOUSOINT_"),
+    ~ case_when(.x == "1" ~ 1L, .x == "6" ~ 0L, TRUE ~ NA_integer_)
+  ))
+
+diseno_nousu <- svydesign(ids = ~1, weights = ~FACTOR_P_NUM, data = datos_nousu)
+prev_nousu <- svymean(
+  ~NOUSOINT_1 + NOUSOINT_2 + NOUSOINT_3 + NOUSOINT_4 + NOUSOINT_5 + NOUSOINT_6 + NOUSOINT_OTRAPERS + NOUSOINT_7,
+  diseno_nousu,
+  na.rm = TRUE
+)
+
+df_nousu <- tibble(
+  Codigo = names(prev_nousu),
+  pct = as.numeric(prev_nousu) * 100
+) %>%
+  mutate(
+    Motivo = recode(Codigo,
+      "NOUSOINT_1" = "No fue necesario / falta de interés",
+      "NOUSOINT_2" = "Era difícil usarlo (falta de habilidades)",
+      "NOUSOINT_7" = "Otras razones",
+      "NOUSOINT_3" = "Dificultades físicas o mentales",
+      "NOUSOINT_OTRAPERS" = "Otra persona lo hizo por mí (uso delegado)",
+      "NOUSOINT_4" = "Preocupación por privacidad o seguridad",
+      "NOUSOINT_6" = "Desconfianza hacia información en la red",
+      "NOUSOINT_5" = "Costes de conexión o equipos elevados"
+    )
+  ) %>%
+  arrange(pct) %>%
+  mutate(Motivo = fct_inorder(Motivo))
+
+ggplot(df_nousu, aes(x = pct, y = Motivo)) +
+  geom_col(fill = "#4A5568", width = 0.62) +
+  geom_text(aes(label = sprintf("%.1f%%", pct)), hjust = -0.2, size = 3.5, fontface = "bold", color = "#1A202C") +
+  scale_x_continuous(limits = c(0, 56), labels = function(x) paste0(x, "%")) +
+  labs(
+    title = "Motivos declarados para no utilizar Internet (universo sin uso reciente, n = 483)",
+    subtitle = "Porcentaje ponderado en personas de 16-74 años sin conexión en los últimos 3 meses (denominador: 483/483 casos)",
+    x = "Porcentaje ponderado (pregunta de respuesta múltiple; suma > 100%)",
+    y = NULL,
+    caption = "Fuente: INE TIC-H 2026. Refleja razones de no utilización de Internet en el Universo no conectado, no motivos de no compra online."
+  )
+```
+
+Dentro de este grupo no conectado recientemente, las barreras declaradas responden fundamentalmente a la **ausencia de necesidad percibida (46,6 %)** y a las **dificultades de uso (33,5 %)**, seguidas de otras razones (25,4 %), dificultades físicas o mentales (17,1 %) y el uso delegado a través de terceros (8,4 %). En contraste, las preocupaciones por privacidad o seguridad (4,4 %), la desconfianza informativa (4,0 %) y los costes (3,1 %) tienen una prevalencia mucho menor.
+
+---
+
+## 7. Discusión Sociológica
+
+Los resultados empíricos permiten dialogar con las tres hipótesis planteadas desde una lectura rigurosa de lo que los modelos permiten afirmar:
+
+1. **Estratificación educativa, generacional y territorial (H1):** Los datos respaldan la hipótesis de que la participación en el comercio electrónico no se distribuye de manera homogénea, sino que muestra una asociación graduada con el nivel educativo y los ingresos del hogar, así como un descenso acusado a partir de los 45 años. Aunque el nivel educativo formal no equivale al concepto completo de capital cultural en sentido bourdieusiano, la marcada diferencia entre niveles formativos tras controlar por renta sugiere que la desigualdad en el aprovechamiento transaccional de Internet (brecha digital de tercer nivel) está estrechamente vinculada a recursos educativos y trayectorias formativas. Asimismo, la asociación positiva observada en municipios de menos de 20.000 habitantes dentro del universo de usuarios conectados ($\text{OR} = 1,38, p = 0,001$) admite como posible interpretación sociológica un efecto de compensación ante una menor densidad comercial física, hipótesis que requeriría datos específicos sobre oferta comercial local para ser contrastada.
+2. **La gestión de la privacidad como práctica digital frente a la actitud declarada (H2):** El contraste entre la ausencia de asociación estadísticamente significativa de la preocupación por la publicidad personalizada (`PREOPUB`) y la asociación positiva de determinadas prácticas de gestión de datos (`GESINT3`, `GESINT4` y `GESINT5`) permite distinguir entre las actitudes declaradas y los comportamientos efectivos de protección de la información personal. Los resultados sugieren que la participación en el comercio electrónico no es necesariamente incompatible con una gestión activa de la privacidad. Por el contrario, algunas prácticas de control de datos aparecen asociadas con una mayor participación transaccional, incluso después de controlar las características sociodemográficas y la frecuencia de conexión. Una posible interpretación es que estas prácticas forman parte de un repertorio más amplio de competencias y formas de apropiación digital; sin embargo, dado el carácter transversal de los datos, no puede determinarse si estas capacidades favorecen la participación comercial, si ambas prácticas responden a factores comunes o si existe una relación recíproca entre ellas.
+3. **Convergencia de prácticas digitales (H3):** La asociación positiva entre el uso de inteligencia artificial generativa y la compra online ($\text{OR} = 2,37, p < 0,001$) sugiere que la adopción temprana de herramientas emergentes y la participación transaccional convergen en perfiles con mayor intensidad y diversificación de uso tecnológico.
+
+---
+
+## 8. Limitaciones Metodológicas
+
+Una valoración rigurosa del estudio requiere explicitar cuatro limitaciones fundamentales:
+
+1. **Diseño transversal y alcance asociativo:** Al tratarse de datos transversales, los modelos identifican asociaciones estadísticas ajustadas, no efectos causales. No puede afirmarse que realizar prácticas de gestión de privacidad incremente causalmente la compra online, sino que ambas conductas aparecen asociadas en la población analizada.
+2. **Limitación del fichero público en el diseño muestral:** El fichero público de microdatos utilizado no contiene identificadores de Unidades Primarias de Muestreo (UPM) ni de estratos muestrales. Aunque el factor `FACTOR_P` permite obtener estimaciones ponderadas para el universo de referencia, los intervalos de confianza estimados bajo `ids = ~1` son provisionales y no reproducen necesariamente la varianza completa del diseño polietápico del INE.
+3. **Delimitación conceptual de los indicadores de privacidad:** La variable `PREOPUB` mide preocupación específica por la publicidad personalizada, no temor al fraude financiero o a las estafas en pagos electrónicos. Por su parte, el recuento `N_ACCIONES_GESTION_DATOS` ($\text{KR-20} = 0,782$) mide la amplitud de prácticas declaradas de gestión de datos, no un índice validado de competencia digital ni de confianza institucional.
+4. **Universo específico del módulo de no usuarios:** Los porcentajes de `NOUSOINT` ($n = 483$) describen exclusivamente motivos para no utilizar Internet en una subpoblación envejecida (60,0 % entre 65 y 74 años) y no deben presentarse como causas de no compra online entre internautas.
+
+---
+
+## 9. Conclusiones e Implicaciones Aplicadas
+
+El estudio confirma que la participación en el comercio electrónico en España (**65,73 %** de la población de 16 a 74 años) mantiene una fuerte relación con la estratificación educativa y generacional, y que entre los usuarios conectados las prácticas activas de protección de datos conviven positivamente con la compra por Internet.
+
+Desde una perspectiva aplicada en investigación social, consultoría y analítica de mercados, estos resultados sugieren tres líneas de transferencia:
+
+* **Segmentación de públicos y diseño de experiencias digitales:** Dado que los usuarios más activos en el comercio electrónico son precisamente quienes ejercen mayor control sobre el uso publicitario de sus datos y verifican la seguridad web, las estrategias basadas en la captación opaca de información pueden generar fricción con los segmentos más participativos. La transparencia en el tratamiento de datos y los controles granulares de privacidad se perfilan como líneas relevantes para fortalecer la relación con los usuarios, hipótesis que merece ser contrastada en estudios específicos de comportamiento del consumidor.
+* **Focalización de políticas de inclusión digital:** Superar las desigualdades de aprovechamiento digital requiere intervenciones orientadas a la capacitación operativa de personas mayores de 55 años y con niveles educativos básicos, grupo en el que también se concentra la exclusión primaria por falta de habilidades (33,5 %) o necesidad percibida (46,6 %).
+* **Transferencia metodológica a entornos profesionales:** El flujo de trabajo desarrollado —auditoría documental de diseños de registro oficiales, depuración reproducible de microdatos, modelización ponderada de encuestas y traducción de parámetros estadísticos a probabilidades interpretables— resulta directamente transferible a proyectos de investigación de mercados, análisis de audiencias y evaluación de políticas públicas.
+
+---
+
+## 10. Reproducibilidad y Estructura del Repositorio
+
+El análisis es íntegramente reproducible a partir de los microdatos públicos del INE mediante la siguiente estructura de proyecto:
+
+* `data-raw/`: Microdatos originales `TICHcuestionario_2026.tab` y Diseño de Registro `dr_TICHcuestionario_2026.xlsx` (INE).
+* `scripts/01_auditoria.R`: Auditoría de estructura, importación en carácter, verificación de pesos `FACTOR_P` y patrones de ausencia.
+* `scripts/02_diccionario_oficial.R`: Extracción programática de etiquetas y tablas de códigos oficiales (`Tablas1` y `Tablas3`).
+* `scripts/04_modelos_y_tablas_limpias.R`: Depuración definitiva, cálculo de consistencia interna ($\text{KR-20}$), estimación de modelos ponderados y exportación de `data-processed/tich2026_definitivo.rds`.
+* `informe_tich_2026.qmd`: Documento reproducible en Quarto que integra el análisis estadístico, la generación de visualizaciones y la redacción técnica.
+
+---
+
+## 11. Referencias Bibliográficas
+
+* Bourdieu, P. (1979). *La Distinction. Critique sociale du jugement*. París: Les Éditions de Minuit.
+* Hargittai, E. (2002). Second-Level Digital Divide: Differences in People's Online Skills. *First Monday*, 7(4).
+* Instituto Nacional de Estadística [INE]. (2026). *Encuesta sobre Equipamiento y Uso de Tecnologías de Información y Comunicación en los Hogares (TIC-H). Año 2026. Metodología y Diseño de Registro*. Madrid: INE.
+* Nissenbaum, H. (2010). *Privacy in Context: Technology, Policy, and the Integrity of Social Life*. Stanford: Stanford University Press.
+* Solove, D. J. (2008). *Understanding Privacy*. Cambridge, MA: Harvard University Press.
+* van Dijk, J. (2005). *The Deepening Divide: Inequality in the Information Society*. Thousand Oaks: SAGE Publications.
+
+---
+
+## Anexo Técnico
+
+### Anexo A1. Diccionario de variables recodificadas
+
+| Variable analítica | Variable origen (INE) | Tabla DR | Definición y codificación aplicada | Universo |
+|:---|:---|:---|:---|:---|
+| `COMPRA_3M` | `ULT_COM`, `ULT_INT` | `T_INTER` | `1`: Compró online en últimos 3 meses (`ULT_COM = 1`). `0`: Hace >3 meses, nunca (`ULT_COM` 2–4) o sin uso de Internet en >1 año (`ULT_INT` 3–4). | Universo A ($n = 14.105$) |
+| `ESTUDIOS_F` | `NIVELEST` | `T_ESTUD` | `1`: Primarios / 1ª etapa ESO (`0–2`); `2`: Bachillerato / FP Medio / Postsec. (`3–4`); `3`: FP Grado Superior (`5`); `4`: Universitarios (`6–8`); `5`: No codificable (`9`). | Universo A ($n = 14.105$) |
+| `ING_HOG_F` | `ING_HOG` | `T_INGRE` | `1` a `5`: Quintiles oficiales de ingresos mensuales netos del hogar; `6`: NS/NR ($n = 1.081$). | Universo A ($n = 14.105$) |
+| `TRABAJO_SEMANA_F` | `TRAB` | `T_SINO` | `1`: Sí trabajó la última semana; `6`: No trabajó la última semana. | Universo A ($n = 14.105$) |
+| `HABITAT_F` | `HABITAT_ESTRATO` | `T_1HBT` | `1`: $\ge 500.000$ hab. (`0`); `2`: $100.000\text{–}499.999$ (`1–2`); `3`: $20.000\text{–}99.999$ (`3–4`); `4`: $< 20.000$ hab. (`5–6`). | Universo A ($n = 14.105$) |
+| `FREC_INT_USU` | `FREC_INT` | `T_INTFR` | `1`: Varias veces al día; `2`: Diariamente; `3`: Semanalmente; `4`: Menos de 1 vez/semana. | Universo B ($n = 13.622$) |
+| `PREOPUB_F` | `PREOPUB` | `TPREOPB` | `6`: Nada preocupado (ref.); `2`: Algo preocupado; `1`: Muy preocupado por publicidad a medida. | Universo B ($n = 13.622$) |
+| `N_ACCIONES_GESTION_DATOS` | `GESINT1`–`6` | `T_SINO` | Suma de 6 conductas binarias (`1` = Sí, `6` = No $\rightarrow 0$): leer políticas (`1`), restringir ubicación (`2`), limitar perfil (`3`), denegar publicidad (`4`), verificar seguridad web (`5`), pedir borrado (`6`). | Universo B ($n = 13.622$) |
+| `USO_IAG_F` | `IAG` | `T_SINO` | `6`: No usa IA Generativa (ref.); `1`: Usa IA Generativa en los últimos 3 meses. | Universo B ($n = 13.622$) |
+
+### Anexo A2. Tablas completas de los modelos de regresión logística ponderada
+
+```{r anexo-tablas}
+extraer_tabla_completa <- function(modelo) {
+  coefs <- summary(modelo)$coefficients
+  ic <- confint(modelo)
+  tibble(
+    Termino = rownames(coefs),
+    OR = round(exp(coefs[, 1]), 3),
+    `IC 95% inf.` = round(exp(ic[, 1]), 3),
+    `IC 95% sup.` = round(exp(ic[, 2]), 3),
+    `Valor p` = if_else(coefs[, 4] < 0.001, "<0.001", sprintf("%.3f", coefs[, 4]))
+  )
+}
+
+kable(extraer_tabla_completa(mod_A), caption = "Tabla A1. Coeficientes completos del Modelo A (Población 16-74 años, n = 14.105)")
+kable(extraer_tabla_completa(mod_B1), caption = "Tabla A2. Coeficientes completos del Modelo B1 — Recuento de gestión de datos (Usuarios 3m, n = 13.622)")
+kable(extraer_tabla_completa(mod_B2), caption = "Tabla A3. Coeficientes completos del Modelo B2 — Prácticas individuales GESINT1-6 (Usuarios 3m, n = 13.622)")
+```
