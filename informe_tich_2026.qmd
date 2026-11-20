@@ -58,7 +58,7 @@ theme_set(
 
 **Tres resultados principales:**
 
-1. **Asociación graduada con el nivel educativo y la edad:** Se estima que el **65,73 %** de la población de 16 a 74 años realizó compras online en los últimos tres meses. El nivel educativo presenta una asociación especialmente intensa y graduada: manteniendo constantes edad, sexo, ingresos del hogar, trabajo semanal y hábitat, la probabilidad estimada para un perfil tipo asciende del **53,9 %** con estudios primarios o primera etapa de ESO al **84,8 %** con estudios universitarios ($\text{OR} = 4,76, p < 0,001$).
+1. **Asociación graduada con el nivel educativo y la edad:** Se estima que el **65,73 %** de la población de 16 a 74 años realizó compras online en los últimos tres meses (incluyendo los 443 casos sin respuesta explícita en `ULT_COM`, clasificados como no compradores por el filtro de cuestionario). El nivel educativo presenta una asociación especialmente intensa y graduada: manteniendo constantes edad, sexo, ingresos del hogar, trabajo semanal y hábitat, la probabilidad predicha para un perfil de referencia asciende del **53,9 %** con estudios primarios o primera etapa de ESO al **84,8 %** con estudios universitarios ($\text{OR} = 4,76, p < 0,001$).
 2. **Contraste entre actitud declarada y prácticas de privacidad:** Entre los usuarios recientes de Internet, declarar preocupación por la publicidad personalizada (`PREOPUB`) **no muestra asociación estadísticamente significativa** con la compra online ($p = 0,375$ y $p = 0,314$). Por el contrario, realizar prácticas activas de gestión de datos personales (`GESINT1`–`6`) se asocia **positivamente** con participar en el comercio electrónico ($\text{OR} = 1,20$ por cada acción adicional, $p < 0,001$), concentrándose la asociación en prácticas técnicas preventivas —limitar el acceso al perfil ($\text{OR} = 1,43$), denegar el uso publicitario de datos ($\text{OR} = 1,38$) y verificar la seguridad web ($\text{OR} = 1,34$).
 3. **Adopción tecnológica y dimensión territorial:** El uso de herramientas de **IA Generativa** se asocia con unas *odds* más del doble de elevadas de compra online ($\text{OR} = 2,37, p < 0,001$). Asimismo, dentro del universo de usuarios conectados, residir en municipios de menos de 20.000 habitantes se asocia con una mayor participación en el comercio electrónico frente a las grandes urbes ($\text{OR} = 1,38, p = 0,001$).
 
@@ -72,9 +72,10 @@ theme_set(
 | **Técnica de investigación** | Análisis cuantitativo secundario de microdatos de encuesta |
 | **Universo principal** | Población residente en España de 16 a 74 años (estándar Eurostat/INE) |
 | **Registros analizados** | $14.105$ individuos en Universo A ($13.622$ en Universo B; $483$ en módulo no usuarios) |
+| **Prevalencia global (`COMPRA_3M`)** | **65,73 %** sobre el universo completo ($n = 14.105$, tras imputar como `0` los 443 casos filtrados por no uso de Internet en $>1$ año); **67,20 %** sobre respuestas explícitas ($n = 13.662$) |
 | **Factor de ponderación** | Factor de elevación individual (`FACTOR_P`; $N_{\text{ef}}$ de Kish $= 6.846$) |
 | **Diseño muestral** | Estudio transversal; estimación ponderada bajo `ids = ~1` (errores estándar provisionales) |
-| **Modelización estadística** | Regresión logística ponderada (`svyglm`, familia `quasibinomial`) y efectos marginales |
+| **Modelización estadística** | Regresión logística ponderada (`svyglm`, familia `quasibinomial`) y probabilidades predichas ajustadas |
 | **Software y reproducibilidad** | R (tidyverse, survey, knitr) y Quarto (`embed-resources: true`) |
 | **Repositorio reproducible** | `github.com/javierechube14/ine-tich-2026-ecommerce` |
 
@@ -134,7 +135,7 @@ Como limitación del fichero público utilizado, los microdatos disponibles no i
 
 Cada variable analítica se construyó verificando previamente las tablas oficiales de códigos del Diseño de Registro del INE (detalladas en el Anexo A1):
 
-* **Participación en comercio electrónico (`COMPRA_3M`):** Variable binaria que toma valor `1` si la persona compró por Internet en los últimos tres meses (`ULT_COM = 1`) y `0` en caso contrario. El cruce con `ULT_INT` (*¿Cuándo fue la última vez que usó Internet?*, tabla `T_INTER`) confirmó documentalmente que los **443 valores ausentes** en `ULT_COM` corresponden íntegramente a personas que usaron Internet por última vez hace más de un año (`ULT_INT = 3`, $n = 102$) o nunca (`ULT_INT = 4`, $n = 341$). Dado que el flujo del cuestionario excluye de la compra reciente a quienes no han usado Internet en más de un año, su codificación como `0` garantiza **cero valores ausentes** ($n = 14.105$).
+* **Participación en comercio electrónico (`COMPRA_3M`):** Variable binaria que toma valor `1` si la persona compró por Internet en los últimos tres meses (`ULT_COM = 1`) y `0` en caso contrario. El cruce con `ULT_INT` (*¿Cuándo fue la última vez que usó Internet?*, tabla `T_INTER`) confirmó documentalmente que los **443 valores ausentes** en `ULT_COM` corresponden íntegramente a personas que usaron Internet por última vez hace más de un año (`ULT_INT = 3`, $n = 102$) o nunca (`ULT_INT = 4`, $n = 341$). Dado que el flujo del cuestionario excluye de la compra reciente a quienes no han usado Internet en más de un año, su clasificación como no compradores (`0`) mantiene el universo oficial completo ($n = 14.105$) sin pérdidas muestrales.
 * **Posición socioeconómica y ciclo vital:**
   * *Nivel educativo (`ESTUDIOS_F`):* Agrupación jerárquica de `NIVELEST` (tabla `T_ESTUD`) en cuatro niveles formativos más una categoría separada para los casos no codificables (`NIVELEST = 9`, $n = 134$).
   * *Ingresos del hogar (`ING_HOG_F`):* Cinco quintiles oficiales de ingresos mensuales netos del hogar definidos por el INE (`T_INGRE`), conservando explícitamente la categoría `"NS/NR"` ($n = 1.081$) para evitar pérdidas muestrales por no respuesta económica.
@@ -154,7 +155,7 @@ La estrategia analítica evita mezclar subpoblaciones sometidas a distintos filt
 1. **Estimaciones descriptivas bivariadas ponderadas:** Cálculo de proporciones ponderadas de compra online por nivel educativo y quintiles de ingresos del hogar.
 2. **Modelo A — Desigualdad estructural ($n = 14.105$):** Regresión logística ponderada (`quasibinomial`) de `COMPRA_3M` sobre edad, sexo, estudios, ingresos del hogar, trabajo semanal y hábitat. Se excluye la frecuencia de uso de Internet para evitar la separación perfecta generada por los 483 no usuarios recientes (cuya tasa de compra es 0 % por diseño) y aislar los determinantes sociodemográficos.
 3. **Modelos B1 y B2 — Privacidad y prácticas digitales ($n = 13.622$):** Regresiones logísticas ponderadas restringidas a usuarios recientes de Internet, incorporando frecuencia de conexión, preocupación publicitaria (`PREOPUB_F`), uso de IA generativa (`USO_IAG_F`) y las prácticas de gestión de datos tanto en recuento agregado (B1) como desglosadas individualmente (B2).
-4. **Probabilidades predichas (efectos marginales sobre perfiles tipo):** Para expresar las asociaciones en puntos porcentuales interpretables, se estiman probabilidades predichas mediante `predict(..., type = "response")` fijando perfiles sociodemográficos explícitos.
+4. **Probabilidades predichas ajustadas para perfiles de referencia:** Para expresar las asociaciones en puntos porcentuales interpretables con su correspondiente incertidumbre, se calculan probabilidades predichas e intervalos de confianza al 95 % provisionales mediante `predict(..., type = "link", se.fit = TRUE)` y transformación logística inversa (`plogis()`).
 5. **Módulo complementario de no utilización de Internet ($n = 483$):** Estimación ponderada de los ocho motivos declarados para no utilizar Internet (`NOUSOINT_1`–`7` y `NOUSOINT_OTRAPERS`), verificando previamente su denominador completo ($483/483$) y la distribución etaria del colectivo.
 
 ---
@@ -163,7 +164,7 @@ La estrategia analítica evita mezclar subpoblaciones sometidas a distintos filt
 
 ### 6.1. Desigualdad estructural en el comercio electrónico (Universo A)
 
-En el conjunto de la población de 16 a 74 años, la estimación ponderada de participación en el comercio electrónico durante los últimos tres meses se sitúa en el **65,73 %** (frente al **67,20 %** si se excluyen del denominador los 443 casos sin respuesta explícita en `ULT_COM`).
+En el conjunto de la población de 16 a 74 años, la estimación ponderada de participación en el comercio electrónico durante los últimos tres meses se sitúa en el **65,73 %** sobre el universo completo ($n = 14.105$, incluyendo como no compradores a los 443 casos sin respuesta explícita en `ULT_COM` por no haber usado Internet en más de un año), frente al **67,20 %** si se restringe el denominador a las 13.662 respuestas explícitas de `ULT_COM`.
 
 ```{r fig-desigualdad-estructural}
 prev_edu <- svyby(~COMPRA_3M, ~ESTUDIOS_F, diseno_A, svymean, na.rm = TRUE) %>%
@@ -197,7 +198,7 @@ ggplot(df_estructural, aes(x = pct, y = fct_rev(Categoria), fill = Dimension)) +
   scale_x_continuous(limits = c(0, 96), labels = function(x) paste0(x, "%")) +
   labs(
     title = "Participación en el comercio electrónico según nivel educativo y quintiles de ingresos",
-    subtitle = "Porcentaje ponderado de población (16-74 años) que compró online en los últimos 3 meses (n = 14.105)",
+    subtitle = "Porcentaje ponderado en población de 16-74 años (n = 14.105; incluye 443 ceros estructurales por filtro ULT_INT)",
     x = "Porcentaje ponderado (con IC 95% aproximado bajo ids = ~1)",
     y = NULL,
     caption = "Fuente: Elaboración propia a partir de microdatos INE TIC-H 2026 (FACTOR_P). Se omite 'No se puede codificar' (n = 134)."
@@ -206,14 +207,14 @@ ggplot(df_estructural, aes(x = pct, y = fct_rev(Categoria), fill = Dimension)) +
 
 Los descriptivos ponderados muestran una diferencia de **39,8 puntos porcentuales** entre la población con estudios primarios o primera etapa de ESO (**42,8 %**) y la población con estudios universitarios (**82,6 %**), mientras que la distancia entre el primer quintil de ingresos del hogar (**60,2 %**) y el quinto quintil (**76,3 %**) alcanza los **16,1 puntos**.
 
-```{r fig-efectos-marginales-A}
+```{r fig-predicciones-A}
 mod_A <- svyglm(
   COMPRA_3M ~ GRUPO_EDAD + SEXO_F + ESTUDIOS_F + ING_HOG_F + TRABAJO_SEMANA_F + HABITAT_F,
   design = diseno_A,
   family = quasibinomial()
 )
 
-# Cálculo documentado de probabilidades predichas (efectos marginales sobre perfil de referencia):
+# Probabilidades predichas ajustadas con IC 95% provisionales para perfiles de referencia:
 # Perfil fijado: Mujer, Tercer quintil de ingresos, Sí trabajó la última semana, Municipio 100.000-499.999 hab.
 grid_A <- expand_grid(
   ESTUDIOS_F = factor(c(
@@ -229,31 +230,41 @@ grid_A <- expand_grid(
   HABITAT_F = factor("2. 100.000 - 499.999 hab.", levels = levels(datos$HABITAT_F))
 )
 
-grid_A$prob_pct <- as.numeric(predict(mod_A, newdata = grid_A, type = "response")) * 100
-grid_A$Estudios_corto <- recode(grid_A$ESTUDIOS_F,
-  "1. Primarios o 1ª etapa ESO" = "Primarios / ESO 1ª",
-  "2. Bachillerato / FP Medio / Postsec." = "Bachillerato / FP Medio",
-  "3. FP Grado Superior" = "FP Grado Superior",
-  "4. Universitarios (Grado/Máster/Doc)" = "Universitarios"
-)
+pred_link_A <- predict(mod_A, newdata = grid_A, type = "link", se.fit = TRUE)
+grid_A <- grid_A %>%
+  mutate(
+    fit_l = as.numeric(pred_link_A),
+    se_l = as.numeric(sqrt(attr(pred_link_A, "var"))),
+    prob_pct = plogis(fit_l) * 100,
+    ic_inf = plogis(fit_l - 1.96 * se_l) * 100,
+    ic_sup = plogis(fit_l + 1.96 * se_l) * 100,
+    Estudios_corto = recode(ESTUDIOS_F,
+      "1. Primarios o 1ª etapa ESO" = "Primarios / ESO 1ª",
+      "2. Bachillerato / FP Medio / Postsec." = "Bachillerato / FP Medio",
+      "3. FP Grado Superior" = "FP Grado Superior",
+      "4. Universitarios (Grado/Máster/Doc)" = "Universitarios"
+    )
+  )
 
-ggplot(grid_A, aes(x = Estudios_corto, y = prob_pct, color = GRUPO_EDAD, group = GRUPO_EDAD)) +
+ggplot(grid_A, aes(x = Estudios_corto, y = prob_pct, color = GRUPO_EDAD, fill = GRUPO_EDAD, group = GRUPO_EDAD)) +
+  geom_ribbon(aes(ymin = ic_inf, ymax = ic_sup), alpha = 0.14, color = NA, show.legend = FALSE) +
   geom_line(linewidth = 1.1) +
   geom_point(size = 3.2) +
-  geom_text(aes(label = sprintf("%.1f%%", prob_pct)), vjust = -0.9, size = 3.3, fontface = "bold", show.legend = FALSE) +
+  geom_text(aes(label = sprintf("%.1f%%", prob_pct)), vjust = -1.0, size = 3.3, fontface = "bold", show.legend = FALSE) +
   scale_color_manual(values = c("25-34" = "#1B365D", "45-54" = "#3182CE", "65-74" = "#C53030")) +
-  scale_y_continuous(limits = c(15, 98), labels = function(x) paste0(x, "%")) +
+  scale_fill_manual(values = c("25-34" = "#1B365D", "45-54" = "#3182CE", "65-74" = "#C53030")) +
+  scale_y_continuous(limits = c(12, 98), labels = function(x) paste0(x, "%")) +
   labs(
-    title = "Probabilidad estimada de compra online según nivel educativo y grupo de edad",
-    subtitle = "Predicciones del Modelo A (perfil fijado: mujer, Q3 ingresos, trabajó última semana, 100k-499k hab.; n = 14.105)",
+    title = "Probabilidad predicha de compra online según nivel educativo y grupo de edad",
+    subtitle = "Predicciones ajustadas Modelo A con IC 95% provisional (mujer, Q3 ingresos, trabajó, 100k-499k hab.; n = 14.105)",
     x = "Nivel de estudios terminados",
-    y = "Probabilidad estimada de compra (3 meses)",
+    y = "Probabilidad predicha de compra (3 meses)",
     color = "Grupo de edad:",
-    caption = "Fuente: Elaboración propia a partir de Modelo A (INE TIC-H 2026). Coeficientes completos en Tabla A1 del Anexo Técnico."
+    caption = "Fuente: Elaboración propia a partir de Modelo A (INE TIC-H 2026). Bandas sombreadas: IC 95% aproximado bajo ids = ~1."
   )
 ```
 
-En la regresión multivariante (Tabla A1 del Anexo Técnico), el nivel educativo presenta una asociación especialmente intensa y graduada: manteniendo constantes las demás variables, las *odds* estimadas de compra online se multiplican por **2,46** en Bachillerato/FP Medio, por **3,32** en FP Superior y por **4,76** en estudios universitarios respecto a estudios primarios o primera etapa de ESO ($p < 0,001$). Para un perfil de referencia de 45–54 años (mujer, tercer quintil de renta, trabajó la última semana, municipio de 100.000–499.999 habitantes), la probabilidad estimada pasa del **53,9 %** con estudios básicos al **84,8 %** con estudios universitarios.
+En la regresión multivariante (Tabla A1 del Anexo Técnico), el nivel educativo presenta una asociación especialmente intensa y graduada: manteniendo constantes las demás variables, las *odds* estimadas de compra online se multiplican por **2,46** en Bachillerato/FP Medio, por **3,32** en FP Superior y por **4,76** en estudios universitarios respecto a estudios primarios o primera etapa de ESO ($p < 0,001$). Para un perfil de referencia de 45–54 años (mujer, tercer quintil de renta, trabajó la última semana, municipio de 100.000–499.999 habitantes), la probabilidad predicha pasa del **53,9 %** ($\text{IC}_{95\%}: [48,4\%; 59,2\%]$) con estudios básicos al **84,8 %** ($\text{IC}_{95\%}: [81,8\%; 87,3\%]$) con estudios universitarios.
 
 Por su parte, los ingresos del hogar muestran diferencias estadísticamente significativas a partir del tercer quintil ($\text{OR} = 1,28, p = 0,010$), alcanzando un $\text{OR} = 1,66$ ($p < 0,001$) en el quinto quintil. No se observa asociación significativa según sexo ($\text{OR} = 1,05, p = 0,382$), mientras que la edad muestra una caída pronunciada a partir de los 45 años ($\text{OR} = 0,61$ en 45–54; $\text{OR} = 0,33$ en 55–64; $\text{OR} = 0,19$ en 65–74 años) y no haber trabajado la semana anterior se asocia con menores *odds* de compra ($\text{OR} = 0,71, p < 0,001$). En cuanto al tamaño del municipio, residir en localidades de menos de 20.000 habitantes presenta un $\text{OR} = 1,20$ respecto a las ciudades de $\ge 500.000$ habitantes, situándose en el límite de la significación convencional ($p = 0,054$).
 
@@ -342,7 +353,7 @@ Los modelos arrojan tres resultados diferenciados:
 * **Diferenciación entre las seis prácticas (`Modelo B2`):** Mientras que leer políticas de privacidad ($\text{OR} = 0,97, p = 0,713$), restringir la ubicación ($\text{OR} = 1,13, p = 0,158$) o solicitar la supresión de datos ($\text{OR} = 0,90, p = 0,195$) no muestran asociación estadísticamente significativa, tres prácticas de control activo presentan asociaciones positivas claras: **limitar el acceso al perfil** ($\text{OR} = 1,43, p < 0,001$), **denegar el uso de datos personales con fines publicitarios** ($\text{OR} = 1,38, p < 0,001$) y **comprobar la seguridad del sitio web** ($\text{OR} = 1,34, p < 0,001$). Asimismo, utilizar herramientas de **IA Generativa** se asocia con unas *odds* 2,37 veces mayores de compra online ($p < 0,001$), y dentro de este universo de usuarios conectados, residir en municipios de menos de 20.000 habitantes sí muestra una asociación positiva significativa ($\text{OR} = 1,38, p = 0,001$).
 
 ```{r fig-simulacion-privacidad}
-# Simulación documentada sobre Modelo B1:
+# Probabilidades predichas ajustadas con IC 95% provisionales sobre Modelo B1:
 # Perfil fijado: Mujer, 35-44 años, Tercer quintil ingresos, Sí trabajó, 100k-499k hab.,
 # Conexión varias veces al día, Algo preocupada por publicidad, No usa IA Generativa.
 grid_priv <- expand_grid(
@@ -361,26 +372,36 @@ grid_priv <- expand_grid(
   USO_IAG_F = factor("No usa IA Gen", levels = levels(datos$USO_IAG_F))
 )
 
-grid_priv$prob_compra <- as.numeric(predict(mod_B1, newdata = grid_priv, type = "response")) * 100
-grid_priv$Nivel_Educativo <- recode(grid_priv$ESTUDIOS_F,
-  "1. Primarios o 1ª etapa ESO" = "Estudios primarios / 1ª etapa ESO",
-  "4. Universitarios (Grado/Máster/Doc)" = "Estudios universitarios"
-)
+pred_link_B1 <- predict(mod_B1, newdata = grid_priv, type = "link", se.fit = TRUE)
+grid_priv <- grid_priv %>%
+  mutate(
+    fit_l = as.numeric(pred_link_B1),
+    se_l = as.numeric(sqrt(attr(pred_link_B1, "var"))),
+    prob_compra = plogis(fit_l) * 100,
+    ic_inf = plogis(fit_l - 1.96 * se_l) * 100,
+    ic_sup = plogis(fit_l + 1.96 * se_l) * 100,
+    Nivel_Educativo = recode(ESTUDIOS_F,
+      "1. Primarios o 1ª etapa ESO" = "Estudios primarios / 1ª etapa ESO",
+      "4. Universitarios (Grado/Máster/Doc)" = "Estudios universitarios"
+    )
+  )
 
-ggplot(grid_priv, aes(x = N_ACCIONES_GESTION_DATOS, y = prob_compra, color = Nivel_Educativo)) +
+ggplot(grid_priv, aes(x = N_ACCIONES_GESTION_DATOS, y = prob_compra, color = Nivel_Educativo, fill = Nivel_Educativo)) +
+  geom_ribbon(aes(ymin = ic_inf, ymax = ic_sup), alpha = 0.14, color = NA, show.legend = FALSE) +
   geom_line(linewidth = 1.2) +
   geom_point(size = 3) +
-  geom_text(aes(label = sprintf("%.1f%%", prob_compra)), vjust = -0.95, size = 3.2, fontface = "bold", show.legend = FALSE) +
+  geom_text(aes(label = sprintf("%.1f%%", prob_compra)), vjust = -1.0, size = 3.2, fontface = "bold", show.legend = FALSE) +
   scale_color_manual(values = c("#C53030", "#1B365D")) +
+  scale_fill_manual(values = c("#C53030", "#1B365D")) +
   scale_x_continuous(breaks = 0:6) +
-  scale_y_continuous(limits = c(45, 93), labels = function(x) paste0(x, "%")) +
+  scale_y_continuous(limits = c(40, 95), labels = function(x) paste0(x, "%")) +
   labs(
-    title = "Probabilidad estimada de compra según recuento de gestión de datos y educación",
-    subtitle = "Predicciones Modelo B1 (perfil fijado: mujer, 35-44 años, Q3, conexión diaria, algo preocupada, sin IA Gen; n = 13.622)",
+    title = "Probabilidad predicha de compra según recuento de gestión de datos y educación",
+    subtitle = "Predicciones ajustadas Modelo B1 con IC 95% provisional (mujer, 35-44 años, Q3, conexión diaria, sin IA Gen; n = 13.622)",
     x = "Número de acciones declaradas de gestión de datos personales (0 a 6)",
-    y = "Probabilidad estimada de compra (3 meses)",
+    y = "Probabilidad predicha de compra (3 meses)",
     color = "Nivel educativo:",
-    caption = "Fuente: Elaboración propia a partir de Modelo B1 (INE TIC-H 2026)."
+    caption = "Fuente: Elaboración propia a partir de Modelo B1 (INE TIC-H 2026). Bandas sombreadas: IC 95% aproximado bajo ids = ~1."
   )
 ```
 
@@ -476,13 +497,13 @@ Desde una perspectiva aplicada en investigación social, consultoría y analíti
 
 ## 10. Reproducibilidad y Estructura del Repositorio
 
-El análisis es íntegramente reproducible a partir de los microdatos públicos del INE mediante la siguiente estructura de proyecto:
+El flujo de trabajo es reproducible a partir de los microdatos públicos gratuitos del INE (*Encuesta TIC-H 2026*, fichero cuestionario en formato `.tab` y Diseño de Registro en `.xlsx`). Para replicar el análisis localmente, basta con descargar los microdatos del INE en una subcarpeta `data-raw/` y ejecutar secuencialmente los scripts alojados en la raíz del repositorio:
 
-* `data-raw/`: Microdatos originales `TICHcuestionario_2026.tab` y Diseño de Registro `dr_TICHcuestionario_2026.xlsx` (INE).
-* `scripts/01_auditoria.R`: Auditoría de estructura, importación en carácter, verificación de pesos `FACTOR_P` y patrones de ausencia.
-* `scripts/02_diccionario_oficial.R`: Extracción programática de etiquetas y tablas de códigos oficiales (`Tablas1` y `Tablas3`).
-* `scripts/04_modelos_y_tablas_limpias.R`: Depuración definitiva, cálculo de consistencia interna ($\text{KR-20}$), estimación de modelos ponderados y exportación de `data-processed/tich2026_definitivo.rds`.
-* `informe_tich_2026.qmd`: Documento reproducible en Quarto que integra el análisis estadístico, la generación de visualizaciones y la redacción técnica.
+* `01_auditoria.R`: Auditoría de estructura, importación en carácter, verificación de pesos `FACTOR_P` y patrones de ausencia.
+* `02_diccionario_oficial.R`: Extracción programática de etiquetas y tablas de códigos oficiales (`Tablas1` y `Tablas3`).
+* `03_modelos_definitivos.R`: Exploración inicial y contraste de especificaciones de regresión logística ponderada.
+* `04_modelos_y_tablas_limpias.R`: Depuración definitiva, cálculo de consistencia interna ($\text{KR-20}$), estimación de modelos ponderados y exportación de `data-processed/tich2026_definitivo.rds`.
+* `informe_tich_2026.qmd` e `index.html`: Documento dinámico en Quarto y versión HTML autocontenida publicada en GitHub Pages.
 
 ---
 
